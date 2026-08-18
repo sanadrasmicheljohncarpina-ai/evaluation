@@ -1,0 +1,33 @@
+# Local environment / configuration
+
+.env
+.env.*
+!.env.example
+
+# IDE / editor files
+
+.vscode/
+.idea/
+
+# OS files
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+
+*.tmp
+*.temp
+*.log
+
+# PHP/XAMPP generated files
+
+cache/
+tmp/
+
+# Uploaded/generated user files
+
+uploads/
+admin/stored_docs/
+image/

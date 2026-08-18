@@ -1,0 +1,206 @@
+name: Fix student role contexts
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply role-context and school-head fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('admin/questionnaire.php')
+          s = p.read_text()
+          old = """        $has_teacher  = ($u['role'] === 'teacher' || ($u['secondary_role'] ?? '') === 'teacher');
+        $has_staff    = hasStaffFunction($u);
+        $has_teaching = userHasTeachingAssignment($mysqli, (int)$u['id']);
+        $is_multi_role = ($has_teacher && $has_staff) || ($has_staff && $has_teaching);
+"""
+          new = """        $has_teacher  = ($u['role'] === 'teacher' || ($u['secondary_role'] ?? '') === 'teacher');
+        $has_staff    = hasStaffFunction($u);
+        $has_teaching = userHasTeachingAssignment($mysqli, (int)$u['id']);
+        $secondary    = trim((string)($u['secondary_role'] ?? ''));
+        $has_additional_role = $secondary !== ''
+            && strtolower($secondary) !== strtolower((string)$u['role']);
+        // Multi-Role is an explicitly added additional role. A teaching
+        // assignment alone does not remove a person from Staff or make
+        // them Multi-Role.
+        $is_multi_role = $has_additional_role || ($has_teacher && $has_staff);
+"""
+          if old not in s: raise SystemExit('questionnaire bucket block not found')
+          s = s.replace(old, new, 1)
+          marker = """    if ($colSecondary && $colSecondary->num_rows === 0) {
+        $mysqli->query(\"ALTER TABLE users ADD COLUMN secondary_role VARCHAR(20) NULL DEFAULT NULL\");
+    }
+"""
+          replacement = """    if ($colSecondary && $colSecondary->num_rows === 0) {
+        $mysqli->query(\"ALTER TABLE users ADD COLUMN secondary_role VARCHAR(100) NULL DEFAULT NULL\");
+    } else {
+        $mysqli->query(\"ALTER TABLE users MODIFY COLUMN secondary_role VARCHAR(100) NULL DEFAULT NULL\");
+    }
+"""
+          if marker in s: s = s.replace(marker, replacement, 1)
+          p.write_text(s)
+
+          p = Path('student/student_dashboard.php')
+          s = p.read_text()
+          old = """$matched_ids = array_column($all_users, 'id');
+
+$sql_nts = \"""
+          new = """$matched_ids = array_column($all_users, 'id');
+
+// Explicit additional-role users are independent of year-level matching.
+// They remain available in Faculty/Staff where applicable and are also
+// shown in Multi-Role to every student.
+$multi_role_users = [];
+$mrRes = $mysqli->query(\"SELECT DISTINCT u.id, u.full_name, u.designation, u.photo, u.role, u.secondary_role
+    FROM users u
+    WHERE u.is_active=1 AND u.account_status='approved'
+      AND TRIM(COALESCE(u.secondary_role,'')) <> ''
+      AND LOWER(TRIM(u.secondary_role)) <> LOWER(TRIM(u.role))
+      AND u.role IN ('teacher','staff')
+    ORDER BY u.full_name ASC\");
+if ($mrRes) $multi_role_users = $mrRes->fetch_all(MYSQLI_ASSOC);
+
+$sql_nts = \"""
+          if old not in s: raise SystemExit('student non-teaching insertion marker not found')
+          s = s.replace(old, new, 1)
+
+          old = """$all_users = array_merge($all_users, $auto_non_teaching_staff);
+
+// ── GROUP INTO STUDENT-FACING CATEGORIES ───────────────────────
+"""
+          new = """$all_users = array_merge($all_users, $auto_non_teaching_staff);
+
+$all_by_id = [];
+foreach ($all_users as $u) $all_by_id[(int)$u['id']] = $u;
+foreach ($multi_role_users as $u) {
+    if (!isset($all_by_id[(int)$u['id']])) {
+        $all_users[] = $u;
+        $all_by_id[(int)$u['id']] = $u;
+    }
+}
+
+// ── GROUP INTO STUDENT-FACING CATEGORIES ───────────────────────
+"""
+          if old not in s: raise SystemExit('student all-users merge marker not found')
+          s = s.replace(old, new, 1)
+
+          old = """    $has_assignment=in_array((int)$u['id'],$assigned_staff_ids,true);
+    $is_multi_role=($has_teacher&&$has_staff)||($has_staff&&$has_assignment);
+"""
+          new = """    $has_assignment=in_array((int)$u['id'],$assigned_staff_ids,true);
+    $secondary=trim((string)($u['secondary_role']??''));
+    $has_additional_role=$secondary!=='' && strtolower($secondary)!==strtolower((string)$u['role']);
+    $is_multi_role=$has_additional_role || ($has_teacher&&$has_staff);
+"""
+          if old not in s: raise SystemExit('student grouping block not found')
+          s = s.replace(old, new, 1)
+
+          old = """        // ── PRINCIPAL / DEAN → SCHOOL HEAD: separate target_type, not the
+        // Teacher/Staff bucket resolution below. Falling through to
+        // resolveUserTarget() would default role='principal'/'dean' to the
+        // 'Staff' bucket (its non-teacher fallback) and look in
+        // user_questions for a per-person set that was never configured.
+        // Both roles share ONE \"School Head\" question pool (matching the
+        // admin's \"School Head Evaluation\" questionnaire), not separate
+        // Principal/Dean pools.
+        if (in_array($role, ['principal', 'dean'], true)) {
+            $pd_target_type = 'School Head';
+            $pdq = $mysqli->prepare(
+                \"SELECT id, question_text, category,
+                        'evaluation' AS question_source
+                 FROM evaluation_questions
+                 WHERE target_type = ? AND eval_type = 'student'
+                 ORDER BY category, id\"
+            );
+            $pdq->bind_param(\"s\", $pd_target_type);
+            $pdq->execute();
+            $pd_questions = $pdq->get_result()->fetch_all(MYSQLI_ASSOC);
+            $pdq->close();
+
+            if (empty($pd_questions)) {
+                throw new Exception(
+                    \"No questions have been set up for this person yet. \" .
+                    \"Please ask the admin to add questions under Questionnaire → $pd_target_type.\"
+                );
+            }
+
+            echo json_encode(['success' => true, 'questions' => $pd_questions]);
+            exit;
+        }
+"""
+          new = """        // Principal/Dean questions are configured per person under
+        // Questionnaire -> School Head -> Principal/Dean.
+        if (in_array($role, ['principal', 'dean'], true)) {
+            $pd_target_type = $role === 'principal' ? 'Principal' : 'Dean';
+            $pdq = $mysqli->prepare(
+                \"SELECT id, question_text, category,
+                        'user' AS question_source
+                 FROM user_questions
+                 WHERE user_id = ? AND target_type = ? AND eval_type = 'school_head'
+                 ORDER BY category, id\"
+            );
+            $pdq->bind_param(\"is\", $target_id, $pd_target_type);
+            $pdq->execute();
+            $pd_questions = $pdq->get_result()->fetch_all(MYSQLI_ASSOC);
+            $pdq->close();
+
+            if (empty($pd_questions)) {
+                throw new Exception(
+                    \"No questions have been set up for this person yet. \" .
+                    \"Please ask the admin to add questions under Questionnaire → School Head → $pd_target_type.\"
+                );
+            }
+
+            echo json_encode(['success' => true, 'questions' => $pd_questions]);
+            exit;
+        }
+"""
+          if old not in s: raise SystemExit('school head question block not found')
+          s = s.replace(old, new, 1)
+
+          old = """    $has_assignment=$target_id>0?hasAnyYearLevelAssignment($mysqli,$target_id):false;
+    $has_multi_context=($has_teacher_context&&$has_staff_context)||($has_staff_context&&$has_assignment);
+"""
+          new = """    $secondary_context=trim((string)($ctxRow['secondary_role']??''));
+    $has_additional_context=$secondary_context!=='' && strtolower($secondary_context)!==strtolower((string)($ctxRow['role']??''));
+    $has_multi_context=$has_additional_context || ($has_teacher_context&&$has_staff_context);
+"""
+          if old not in s: raise SystemExit('submission context block not found')
+          s = s.replace(old, new, 1)
+
+          old = """        $has_assignment = hasAnyYearLevelAssignment($mysqli, $target_id);
+        $is_multi_role = ($has_teacher_context && $has_staff_context) || ($has_staff_context && $has_assignment);
+"""
+          new = """        $secondary_context = trim((string)($userRow['secondary_role'] ?? ''));
+        $has_additional_context = $secondary_context !== '' && strtolower($secondary_context) !== strtolower((string)$userRow['role']);
+        $is_multi_role = $has_additional_context || ($has_teacher_context && $has_staff_context);
+"""
+          if old not in s: raise SystemExit('AJAX multi-role block not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          print('Patch applied')
+
+      - name: Validate PHP
+        run: |
+          php -l admin/questionnaire.php
+          php -l student/student_dashboard.php
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add admin/questionnaire.php student/student_dashboard.php
+          git commit -m "Fix additional-role Multi-Role and School Head evaluation"
+          git push
