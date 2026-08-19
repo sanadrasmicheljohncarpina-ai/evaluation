@@ -100,7 +100,7 @@ $viewOnly = isset($_GET['view']);
 $tabConfig = [
     'faculty'              => ['role' => 'teacher',     'bucket' => 'Faculty',              'label' => 'Teacher',              'form_type' => 'faculty_dean'],
     'staff'                => ['role' => 'staff',        'bucket' => 'Staff',                'label' => 'Staff',                'form_type' => 'staff_dean'],
-    'executive_assistant'  => ['role' => 'executive_assistant', 'bucket' => 'Executive Assistant',  'label' => 'Executive Assistant',  'form_type' => 'executive_assistant_dean'],
+    'executive_assistant'  => ['role' => 'superadmin', 'bucket' => 'Executive Assistant',  'label' => 'Executive Assistant',  'form_type' => 'executive_assistant_dean'],
 ];
 $cfg = $tabConfig[$tab];
 
