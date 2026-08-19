@@ -154,7 +154,7 @@ $photo_src = !empty($me['photo']) ? UPLOAD_URL . $me['photo'] : UPLOAD_URL . 'pb
 $collegePh = implode(',', array_fill(0, count(COLLEGE_LEVELS), '?'));
 $collegeTypes = str_repeat('s', count(COLLEGE_LEVELS));
 
-if ($cfg['role'] === 'executive_assistant') {
+if ($cfg['role'] === 'superadmin') {
     $target = safe_rows($mysqli, "
         SELECT id, full_name, photo, designation FROM users
         WHERE id=? AND role=? AND is_active=1 AND account_status='approved'

@@ -27,7 +27,7 @@
 // Added 'principal' and 'dean' to the roles this page recognizes. Without
 // this, a self-registered Principal/Dean account lands in account_status
 // = 'pending' and has NO admin UI path to ever become 'approved' — every
-// query here was scoped to role IN ('executive_assistant',
+// query here was scoped to role IN (
 // 'teacher','staff','student'), silently excluding them from every tab,
 // count, and approve/block/edit/delete action.
 
@@ -110,9 +110,8 @@ $mysqli->query("
     )
 ");
 
-$valid_roles = ['executive_assistant', 'principal', 'dean', 'teacher', 'staff', 'student'];
+$valid_roles = ['principal', 'dean', 'teacher', 'staff', 'student'];
 $role_labels = [
-    'executive_assistant'  => 'Executive Assistant',
     'principal'             => 'Principal',
     'dean'                  => 'Dean',
     'teacher'               => 'Teacher',   // display label only — role value stays 'teacher'
@@ -120,7 +119,6 @@ $role_labels = [
     'student'               => 'Student',
 ];
 $role_icons = [
-    'executive_assistant'  => 'fa-briefcase',
     'principal'             => 'fa-user-tie',
     'dean'                  => 'fa-graduation-cap',
     'teacher'               => 'fa-chalkboard-user',
@@ -224,7 +222,7 @@ function redirect_back(string $viewRole, string $viewStatus, string $ylFilter = 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'approve_account') {
     if (!verify_csrf()) reject_csrf($viewRole, $viewStatus);
     $uid = intval($_POST['user_id'] ?? 0);
-    $stmt = $mysqli->prepare("UPDATE users SET account_status='approved', is_active=1 WHERE id=? AND role IN ('executive_assistant','principal','dean','teacher','staff','student')");
+    $stmt = $mysqli->prepare("UPDATE users SET account_status='approved', is_active=1 WHERE id=? AND role IN ('principal','dean','teacher','staff','student')");
     $stmt->bind_param("i", $uid);
     $stmt->execute();
     $stmt->close();
@@ -239,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'block
     if ($uid === (int)$_SESSION['user_id']) {
         $_SESSION['toast_error'] = "You can't block your own account.";
     } else {
-        $stmt = $mysqli->prepare("UPDATE users SET account_status='blocked', is_active=0 WHERE id=? AND role IN ('executive_assistant','principal','dean','teacher','staff','student')");
+        $stmt = $mysqli->prepare("UPDATE users SET account_status='blocked', is_active=0 WHERE id=? AND role IN ('principal','dean','teacher','staff','student')");
         $stmt->bind_param("i", $uid);
         $stmt->execute();
         $stmt->close();
@@ -256,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
         $_SESSION['toast_error'] = "No accounts selected.";
     } else {
         $placeholders = implode(',', array_fill(0, count($uids), '?'));
-        $stmt = $mysqli->prepare("UPDATE users SET account_status='approved', is_active=1 WHERE id IN ($placeholders) AND role IN ('executive_assistant','principal','dean','teacher','staff','student')");
+        $stmt = $mysqli->prepare("UPDATE users SET account_status='approved', is_active=1 WHERE id IN ($placeholders) AND role IN ('principal','dean','teacher','staff','student')");
         $stmt->bind_param(str_repeat('i', count($uids)), ...$uids);
         $stmt->execute();
         $n = $stmt->affected_rows;
@@ -275,7 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'bulk_
         $_SESSION['toast_error'] = "No eligible accounts selected.";
     } else {
         $placeholders = implode(',', array_fill(0, count($uids), '?'));
-        $stmt = $mysqli->prepare("UPDATE users SET account_status='blocked', is_active=0 WHERE id IN ($placeholders) AND role IN ('executive_assistant','principal','dean','teacher','staff','student')");
+        $stmt = $mysqli->prepare("UPDATE users SET account_status='blocked', is_active=0 WHERE id IN ($placeholders) AND role IN ('principal','dean','teacher','staff','student')");
         $stmt->bind_param(str_repeat('i', count($uids)), ...$uids);
         $stmt->execute();
         $n = $stmt->affected_rows;
@@ -292,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
     $uid       = intval($_POST['user_id'] ?? 0);
     $full_name = trim($_POST['full_name'] ?? '');
 
-$rowStmt = $mysqli->prepare("SELECT role FROM users WHERE id=? AND role IN ('executive_assistant','principal','dean','teacher','staff','student') LIMIT 1");
+$rowStmt = $mysqli->prepare("SELECT role FROM users WHERE id=? AND role IN ('principal','dean','teacher','staff','student') LIMIT 1");
     $rowStmt->bind_param("i", $uid);
     $rowStmt->execute();
     $rowChk = $rowStmt->get_result()->fetch_assoc();
@@ -335,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reset
         $_SESSION['toast_error'] = "Passwords do not match.";
     } else {
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $mysqli->prepare("UPDATE users SET password_hash = ? WHERE id = ? AND role IN ('executive_assistant','principal','dean','teacher','staff','student')");
+        $stmt = $mysqli->prepare("UPDATE users SET password_hash = ? WHERE id = ? AND role IN ('principal','dean','teacher','staff','student')");
         $stmt->bind_param("si", $hash, $uid);
         $stmt->execute();
         $stmt->close();
@@ -492,7 +490,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
 
 $id = intval($_POST['toggle_id'] ?? 0);
     if ($id !== (int)$_SESSION['user_id']) {
-        $stmt = $mysqli->prepare("UPDATE users SET is_active = IF(is_active=1,0,1) WHERE id=? AND account_status='approved' AND role IN ('executive_assistant','principal','dean','teacher','staff','student')");
+        $stmt = $mysqli->prepare("UPDATE users SET is_active = IF(is_active=1,0,1) WHERE id=? AND account_status='approved' AND role IN ('principal','dean','teacher','staff','student')");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $stmt->close();
@@ -510,7 +508,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 $id = intval($_POST['delete_id'] ?? 0);
     if ($id !== (int)$_SESSION['user_id']) {
         try {
-            $stmt = $mysqli->prepare("DELETE FROM users WHERE id=? AND role IN ('executive_assistant','principal','dean','teacher','staff','student')");            $stmt->bind_param("i", $id);
+            $stmt = $mysqli->prepare("DELETE FROM users WHERE id=? AND role IN ('principal','dean','teacher','staff','student')");            $stmt->bind_param("i", $id);
             $ok = $stmt->execute();
             $stmt->close();
 

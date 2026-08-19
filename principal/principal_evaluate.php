@@ -34,7 +34,7 @@ if ($requestedBucket === 'Executive Assistant') {
     $stmt = $mysqli->prepare("
         SELECT id, full_name, designation, photo, role, secondary_role, year_level
         FROM users
-        WHERE id=? AND role='executive_assistant' AND is_active=1 AND account_status='approved'
+        WHERE id=? AND role='superadmin' AND is_active=1 AND account_status='approved'
         LIMIT 1
     ");
     $stmt->bind_param("i", $tid);
@@ -69,7 +69,7 @@ if ($requestedBucket === 'Executive Assistant') {
         $stmt = $mysqli->prepare("
             SELECT id, full_name, designation, photo, role, secondary_role, year_level
             FROM users
-            WHERE id=? AND role='executive_assistant' AND is_active=1 AND account_status='approved'
+            WHERE id=? AND role='superadmin' AND is_active=1 AND account_status='approved'
             LIMIT 1
         ");
         $stmt->bind_param("i", $tid);

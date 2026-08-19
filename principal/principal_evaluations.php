@@ -108,7 +108,7 @@ if ($structureActive) {
     $eaRes = $mysqli->prepare("
         SELECT id, full_name, designation, photo, department
         FROM users
-        WHERE role='executive_assistant' AND is_active=1 AND account_status='approved'
+        WHERE role='superadmin' AND is_active=1 AND account_status='approved'
         ORDER BY full_name ASC
     ");
     $eaRes->execute();

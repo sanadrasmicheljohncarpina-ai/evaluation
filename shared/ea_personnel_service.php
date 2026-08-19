@@ -114,7 +114,7 @@ function ea_get_executive_assistants(mysqli $mysqli, int $periodId): array {
     return ea_rows($mysqli, "
         SELECT id, full_name, photo, designation AS position, role AS system_role
         FROM users
-        WHERE role = 'executive_assistant' AND account_status = 'approved' AND is_active = 1
+        WHERE role = 'superadmin' AND account_status = 'approved' AND is_active = 1
         ORDER BY full_name ASC
     ", '', []);
 }
