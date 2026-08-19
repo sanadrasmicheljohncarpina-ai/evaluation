@@ -100,7 +100,7 @@ $viewOnly = isset($_GET['view']);
 $tabConfig = [
     'faculty'              => ['role' => 'teacher',     'bucket' => 'Faculty',              'label' => 'Teacher',              'form_type' => 'faculty_dean'],
     'staff'                => ['role' => 'staff',        'bucket' => 'Staff',                'label' => 'Staff',                'form_type' => 'staff_dean'],
-    'executive_assistant'  => ['role' => 'superadmin', 'bucket' => 'Executive Assistant',  'label' => 'Executive Assistant',  'form_type' => 'executive_assistant_dean'],
+    'executive_assistant'  => ['role' => 'executive_assistant', 'bucket' => 'Executive Assistant',  'label' => 'Executive Assistant',  'form_type' => 'executive_assistant_dean'],
 ];
 $cfg = $tabConfig[$tab];
 
@@ -154,16 +154,16 @@ $photo_src = !empty($me['photo']) ? UPLOAD_URL . $me['photo'] : UPLOAD_URL . 'pb
 $collegePh = implode(',', array_fill(0, count(COLLEGE_LEVELS), '?'));
 $collegeTypes = str_repeat('s', count(COLLEGE_LEVELS));
 
-if ($cfg['role'] === 'executive_assistant') {
+if ($cfg['role'] === 'superadmin') {
     $target = safe_rows($mysqli, "
         SELECT id, full_name, photo, designation FROM users
-        WHERE id=? AND role=? AND account_status='approved'
+        WHERE id=? AND role=? AND is_active=1 AND account_status='approved'
         LIMIT 1
     ", "is", [$targetId, $cfg['role']]);
 } else {
     $target = safe_rows($mysqli, "
         SELECT id, full_name, photo, department, designation FROM users u
-        WHERE id=? AND role=? AND account_status='approved'
+        WHERE id=? AND role=? AND is_active=1 AND account_status='approved'
           AND EXISTS (SELECT 1 FROM user_year_levels uyl WHERE uyl.user_id = u.id AND uyl.year_level IN ($collegePh))
         LIMIT 1
     ", "is" . $collegeTypes, array_merge([$targetId, $cfg['role']], COLLEGE_LEVELS));
