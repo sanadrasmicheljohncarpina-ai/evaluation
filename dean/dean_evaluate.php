@@ -157,13 +157,13 @@ $collegeTypes = str_repeat('s', count(COLLEGE_LEVELS));
 if ($cfg['role'] === 'executive_assistant') {
     $target = safe_rows($mysqli, "
         SELECT id, full_name, photo, designation FROM users
-        WHERE id=? AND role=? AND is_active=1 AND account_status='approved'
+        WHERE id=? AND role=? AND account_status='approved'
         LIMIT 1
     ", "is", [$targetId, $cfg['role']]);
 } else {
     $target = safe_rows($mysqli, "
         SELECT id, full_name, photo, department, designation FROM users u
-        WHERE id=? AND role=? AND is_active=1 AND account_status='approved'
+        WHERE id=? AND role=? AND account_status='approved'
           AND EXISTS (SELECT 1 FROM user_year_levels uyl WHERE uyl.user_id = u.id AND uyl.year_level IN ($collegePh))
         LIMIT 1
     ", "is" . $collegeTypes, array_merge([$targetId, $cfg['role']], COLLEGE_LEVELS));
